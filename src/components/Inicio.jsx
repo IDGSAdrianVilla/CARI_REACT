@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from 'react-router-dom';
 
 import Header from "../layouts/header";
 import '../assets/css/Cards.css'
@@ -54,6 +55,30 @@ class Inicio extends React.Component {
     }
 
     clickDetalleReporte (pk) {
+        this.setState({
+            formConsulta : {
+                formNombreCliente       : "",
+                formFolio               : "",
+                formNombre              : "",
+                formAPaterno            : "",
+                formAMaterno            : "",
+                formTelefono            : "",
+                formTelefono2           : "",
+                formPoblacion           : "",
+                formCooredenadas        : "",
+                formDireccion           : "",
+                formReferencias         : "",
+                formProblema            : "",
+                formDescripcionProblema : "",
+                formObservaciones       : "",
+                formDiagnostico         : "",
+                formSolucion            : "",
+                formEmpleadoRecibio     : "",
+                formFechaAlta           : "",
+                formHoraAlta            : ""
+            }
+        })
+
         let url = ApiCari + "obtener_detalleReporte/"+ pk;
 
         axios.get(url).then(response => {
@@ -178,7 +203,7 @@ class Inicio extends React.Component {
                                 )
                             })}
 
-                            <a href="/reportes"><h4><b className="subtitle">Ver más...</b></h4></a>
+                            <Link to="/reportes"><h4><b className="subtitle">Ver más...</b></h4></Link>
                         </div>
                     </div>
                 </div>

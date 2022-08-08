@@ -1,10 +1,7 @@
 import React from "react";
+import { Link } from 'react-router-dom';
 
 class Header extends React.Component {
-
-    moveReporte (direc) {
-        this.props.history.push("/"+direc);
-    }
 
     render() { 
         return (
@@ -17,7 +14,7 @@ class Header extends React.Component {
                     <div className="collapse navbar-collapse" id="navbarSupportedContent">
                         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                             <li className="nav-item">
-                                <a className="nav-link active" aria-current="page" href="/inicio">Inicio</a>
+                                <Link to="/inicio" className="nav-link active" aria-current="page">Inicio</Link>
                             </li>
                             
                             <li className="nav-item dropdown">
@@ -26,7 +23,7 @@ class Header extends React.Component {
                                 </a>
                                 <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
                                     <li><a className="dropdown-item" href="#" data-bs-toggle='modal' data-bs-target='#modalReporte'>Generar reporte</a></li>
-                                    <li><a className="dropdown-item" href="#" onClick={()=>this.moveReporte('reportes')}>Reportes pendientes</a></li>
+                                    <li><Link to="/reportes" className="dropdown-item">Reportes pendientes</Link></li>
                                     <li><a className="dropdown-item" href="#">Reportes atendidos</a></li>
                                 </ul>
                             </li>

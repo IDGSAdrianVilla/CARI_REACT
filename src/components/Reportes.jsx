@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 import Header from "../layouts/header";
 import '../assets/css/Cards.css';
@@ -49,15 +50,53 @@ class Inicio extends React.Component {
             "formSolucion" : "",
             "formEmpleadoRecibio" : "",
             "formFechaAlta" : "",
-            "formHoraAlta" : ""
+            "formHoraAlta" : "",
+            "PKTblEmpleados" : localStorage.getItem("PKTblEmpleados")
         },
-        detalleReporte : true
+        detalleReporte : true,
+        botonesReportePendiente : false,
+        botonesReportePendienteAtendiendo : false,
+        botonesReportePendienteDS : false,
+        botonesReportePendienteAtendiendoDS : false
     }
 
     clickDetalleReporte (pk) {
+
+        this.setState({
+            botonesReportePendiente : false,
+            botonesReportePendienteAtendiendo : false,
+            botonesReportePendienteDS : false,
+            botonesReportePendienteAtendiendoDS : false
+        });
+
         let url = ApiCari + "obtener_detalleReporte/"+ pk;
 
         axios.get(url).then(response => {
+            if ( response.data[0].status == 'Atendido' ) {
+                
+            } else {
+                if ( response.data[0].diagnostico != null || response.data[0].solucion != null) {
+                    if ( response.data[0].PKTblEmpleadosAtediendo != null ) {
+                        this.setState({
+                            botonesReportePendienteAtendiendoDS : true
+                        });
+                    } else {
+                        this.setState({
+                            botonesReportePendienteDS : true
+                        });
+                    }
+                } else {
+                    if ( response.data[0].PKTblEmpleadosAtediendo != null ) {
+                        this.setState({
+                            botonesReportePendienteAtendiendo : true
+                        });
+                    } else {
+                        this.setState({
+                            botonesReportePendiente : true
+                        });
+                    }
+                }
+            }
             this.setState({
                 formConsulta : {
                     formNombreCliente       : response.data[0].nombreCliente+' '+response.data[0].apellidoPaterno+' '+response.data[0].apellidoMaterno,
@@ -69,7 +108,6 @@ class Inicio extends React.Component {
                     formTelefono2           : response.data[0].telefonoOpcional,
                     formPoblacion           : response.data[0].nombrePoblacion,
                     formCooredenadas        : response.data[0].coordenadas,
-                    formCooredenadasMaps    : 'https://www.google.es/maps?q='+response.data[0].coordenadas,
                     formDireccion           : response.data[0].direccion,
                     formReferencias         : response.data[0].referencias,
                     formProblema            : response.data[0].nombreProblema,
@@ -79,7 +117,8 @@ class Inicio extends React.Component {
                     formSolucion            : response.data[0].solucion,
                     formEmpleadoRecibio     : response.data[0].empleadoRecibio,
                     formFechaAlta           : response.data[0].fechaAlta,
-                    formHoraAlta            : response.data[0].horaAlta
+                    formHoraAlta            : response.data[0].horaAlta,
+                    formPKTblEmpleados      : localStorage.getItem("PKTblEmpleados")
                 },
                 detalleReporte : true
             })
@@ -99,9 +138,15 @@ class Inicio extends React.Component {
             console.log(e);
         })
 
-        let reportesPendientes = ApiCari + "obtener_reportes/Pendiente";
+        let reportesPendientesAPI = ApiCari + "obtener_reportes/Pendiente";
 
-        axios.get(reportesPendientes).then(response => {
+        axios.get(reportesPendientesAPI).then(response => {
+            response.data.map(x => {
+                x.coordenadasMaps = x.coordenadas != null ? 'https://www.google.es/maps?q='+x.coordenadas : '#';
+                x.imgCoordenadasMaps = x.coordenadas != null ? 'https://cari.villasoftsolutions.com/project/public/images/maps.png' : 'https://cari.villasoftsolutions.com/project/public/images/sinmaps.png' ;
+                x.accionAtender = x.diagnostico != null || x.solucion ? 'https://cari.villasoftsolutions.com/project/public/images/atender.png' : 'https://cari.villasoftsolutions.com/project/public/images/incompleto.png';
+            })
+
             this.setState({
                 reportesPendientes : response.data
             })
@@ -114,6 +159,15 @@ class Inicio extends React.Component {
         await this.setState({
             form : {
                 ...this.state.form,
+                [e.target.name] : e.target.value
+            }
+        })
+    }
+
+    manejadorChangeDetalleRep = async e => {
+        await this.setState({
+            formConsulta : {
+                ...this.state.formConsulta,
                 [e.target.name] : e.target.value
             }
         })
@@ -149,12 +203,72 @@ class Inicio extends React.Component {
         }
     }
 
+    actualizarReporte = () => {
+        let registrarReporte = ApiCari + 'actualizar_reporte';
+
+        axios.post(registrarReporte, this.state.formConsulta).then( response => {
+            this.setState({
+                message : true,
+                textMessage : 'Actualización exitosa',
+            })
+        }).catch( e => {
+            this.setState({
+                errMessage : true,
+                errTextMessage : "Error al actualizar",
+            })
+        })
+        document.querySelector('#cerrarModal').click();
+    }
+
+    clickFuncionAtendiendoRep = ( folio ) => {
+        let atendiendoReporte = ApiCari + 'atendiendo_reporte/'+folio+'/'+localStorage.getItem("PKTblEmpleados");
+        axios.get(atendiendoReporte).then( response => {
+            this.setState({
+                message : true,
+                textMessage : 'Se cambio el estado del reporte a "Atendiendo"',
+            })
+        }).catch( e => {
+            this.setState({
+                errMessage : true,
+                errTextMessage : "Error al cambiar estado",
+            })
+        })
+        document.querySelector('#cerrarModal').click();
+    }
+
+    clickFuncionDesatendiendoRep = ( folio ) => {
+        let desatendiendoReporte = ApiCari + 'desatendiendo_reporte/'+folio;
+        axios.get(desatendiendoReporte).then( response => {
+            this.setState({
+                message : true,
+                textMessage : 'Se cambio ha elminiado el estado "Atendiendo"',
+            })
+        }).catch( e => {
+            this.setState({
+                errMessage : true,
+                errTextMessage : "Error al cambiar estado",
+            })
+        })
+        document.querySelector('#cerrarModal').click();
+    }
+
     render() { 
         return (
             <React.Fragment>
                 <Header></Header>
 
                 <div className="col-md-12">
+                    <br/>
+                    <div className="container">
+                        {this.state.message === true &&
+                            <div className="form-group col-md-12" style={{marginTop: '1%'}}>
+                                <div className="alert alert-success alert-dismissible">
+                                    <div type="button" className="btn-close" data-bs-dismiss="alert"></div>
+                                    <b>{this.state.textMessage}</b>
+                                </div>
+                            </div>
+                        }
+                    </div>
 
                     <div className="container">
                         <div className="form-group">
@@ -182,21 +296,21 @@ class Inicio extends React.Component {
                             { this.state.reportesPendientes.map((value, index) => {
                                 return (
                                     <tr key={index}>
-                                        <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} scope="col">{value.folio}</td>
+                                        <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} scope="col" >{value.folio}</td>
                                         <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} >{value.nombreCliente}</td>
-                                        <td style={{textAlign: 'center', color:'gray'}} scope="col"><b>{value.telefono}</b></td>
+                                        <td style={{textAlign: 'center', color:'#00809C'}} scope="col"><b>{value.telefono}</b></td>
                                         <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} >{value.nombreProblema}</td>
                                         <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} >{value.fechaAlta}</td>
                                         <td data-bs-toggle='modal' data-bs-target='#verModalReporte' onClick={()=>this.clickDetalleReporte(value.folio)} style={{textAlign: 'center'}} >{value.nombrePoblacion}</td>
                                         <td style={{textAlign: 'center'}} >
-                                            <a target="_blank" href={value.formCooredenadasMaps}>
+                                            <a href={value.coordenadas} target="_blank" >
                                                 <div style={{width: '100%', height: '100%'}}>
-                                                    <img src="https://cari.villasoftsolutions.com/project/public/images/maps.png" alt="" width="22px" />
+                                                    <img src={value.imgCoordenadasMaps} width="22px" />
                                                 </div>
                                             </a>
                                         </td>
                                         <td style={{textAlign: 'center'}} >
-                                            <img src="https://cari.villasoftsolutions.com/project/public/images/incompleto.png" alt="" width="22px" />
+                                            <img src={value.accionAtender} width="22px" />
                                         </td>
                                     </tr>
                                 )
@@ -209,44 +323,44 @@ class Inicio extends React.Component {
                     <div id="verModalReporte" className="modal" role="dialog">
                         <div className="modal-dialog modal-dialog-scrollable modal-lg">
                             <div className="modal-content">
-                                <div className="modal-header colorFondoTitulo" style={{textAlign: 'center'}}>
-                                    <h4 data-bs-dismiss="modal" className="modal-title"><center><b className="tituloPrincipalModal">{this.state.formConsulta.formNombreCliente}</b></center></h4>
+                                <div data-bs-dismiss="modal" className="modal-header colorFondoTitulo" style={{textAlign: 'center'}}>
+                                    <h4 className="modal-title"><center><b className="tituloPrincipalModal">{this.state.formConsulta.formNombreCliente}</b></center></h4>
                                     <section id="atendiendo" style={{marginTop: '0px'}}></section>
                                 </div>
                                 <div className="modal-body">
-                                    <form className="form-horizontal" autoComplete="nope" method="post">
+                                    <form className="form-horizontal" autoComplete="nope" onSubmit={this.manejadorSubmit}>
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Folio:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" name="PKTblReportes" readOnly style={{background: 'white'}} value={this.state.formConsulta.formFolio}/>
+                                                <input type="text" className="form-control" name="PKTblReportes" readOnly style={{background: 'white'}} value={this.state.formConsulta.formFolio != null ? this.state.formConsulta.formFolio : "" }/>
                                             </div>
                                         </div>
 
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Nombre:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" name="nombreCliente" readOnly style={{background: 'white'}} value={this.state.formConsulta.formNombre}/>
+                                                <input type="text" className="form-control" name="nombreCliente" readOnly style={{background: 'white'}} value={this.state.formConsulta.formNombre != null ? this.state.formConsulta.formNombre : "" }/>
                                             </div>
                                         </div>
 
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Apellido Paterno:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" name="apellidoPaterno" readOnly style={{background: 'white'}} value={this.state.formConsulta.formAPaterno}/>
+                                                <input type="text" className="form-control" name="apellidoPaterno" readOnly style={{background: 'white'}} value={this.state.formConsulta.formAPaterno != null ? this.state.formConsulta.formAPaterno : "" }/>
                                             </div>
                                         </div>
 
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Apellido Materno:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" name="apellidoMaterno" readOnly style={{background: 'white'}} value={this.state.formConsulta.formAMaterno}/>
+                                                <input type="text" className="form-control" name="apellidoMaterno" readOnly style={{background: 'white'}} value={this.state.formConsulta.formAMaterno != null ? this.state.formConsulta.formAMaterno : "" }/>
                                             </div>
                                         </div>
 
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Tel&eacute;fono:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" maxLength="10" name="telefono" readOnly style={{background: 'white'}} value={this.state.formConsulta.formTelefono}/>
+                                                <input type="text" className="form-control" maxLength="10" name="telefono" readOnly style={{background: 'white'}} value={this.state.formConsulta.formTelefono != null ? this.state.formConsulta.formTelefono : "" }/>
                                             </div>
                                         </div>
 
@@ -264,21 +378,21 @@ class Inicio extends React.Component {
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Coordenadas:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" style={{background: '#6DB3FF', color: 'white'}} name="coordenadas" readOnly placeholder="Coordenadas" value={this.state.formConsulta.formCooredenadas}/>
+                                                <input type="text" className="form-control" style={{background: '#6DB3FF', color: 'white'}} name="coordenadas" readOnly placeholder="Coordenadas" value={this.state.formConsulta.formCooredenadas != null ? this.state.formConsulta.formCooredenadas : "" }/>
                                             </div>
                                         </div>
                                         
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Dirección:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="direccion" id="direccion3" readOnly style={{background: 'white'}} defaultValue={this.state.formConsulta.formDireccion}></textarea>
+                                                <textarea rows="1" className="form-control" name="direccion" id="direccion3" readOnly style={{background: 'white'}} value={this.state.formConsulta.formDireccion != null ? this.state.formConsulta.formDireccion : "" }></textarea>
                                             </div>
                                         </div>
                                         
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Referencias:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="referencias" id="referencias3" readOnly style={{background: 'white'}} defaultValue={this.state.formConsulta.formReferencias} placeholder="Referencias"></textarea>
+                                                <textarea rows="1" className="form-control" name="referencias" id="referencias3" readOnly style={{background: 'white'}} value={this.state.formConsulta.formReferencias != null ? this.state.formConsulta.formReferencias : "" } placeholder="Referencias"></textarea>
                                             </div>
                                         </div>
                                         <h6 align="center">
@@ -297,28 +411,28 @@ class Inicio extends React.Component {
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Descripción del problema:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="descripcionProblema" defaultValue={this.state.formConsulta.formDescripcionProblema}></textarea>
+                                                <textarea rows="1" className="form-control" name="formDescripcionProblema" value={this.state.formConsulta.formDescripcionProblema != null ? this.state.formConsulta.formDescripcionProblema : "" } onChange={this.manejadorChangeDetalleRep}></textarea>
                                             </div>
                                         </div>
                                         
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Observaciones:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="observaciones" defaultValue={this.state.formConsulta.formObservaciones} placeholder="Observaciones"></textarea>
+                                                <textarea rows="1" className="form-control" name="formObservaciones" value={this.state.formConsulta.formObservaciones != null ? this.state.formConsulta.formObservaciones : "" } placeholder="Observaciones" onChange={this.manejadorChangeDetalleRep}></textarea>
                                             </div>
                                         </div>
                                         
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Diagnostico:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="diagnostico" defaultValue={this.state.formConsulta.formDiagnostico} placeholder="Diagnostico"></textarea>
+                                                <textarea rows="1" className="form-control" name="formDiagnostico" value={this.state.formConsulta.formDiagnostico != null ? this.state.formConsulta.formDiagnostico : "" } placeholder="Diagnostico" onChange={this.manejadorChangeDetalleRep}></textarea>
                                             </div>
                                         </div>
                                         
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Solución:</b></label>
                                             <div className="col-sm-9">
-                                                <textarea rows="1" className="form-control" name="solucion" defaultValue={this.state.formConsulta.formSolucion} placeholder="Solución"></textarea>
+                                                <textarea rows="1" className="form-control" name="formSolucion" value={this.state.formConsulta.formSolucion != null ? this.state.formConsulta.formSolucion : "" } placeholder="Solución" onChange={this.manejadorChangeDetalleRep}></textarea>
                                             </div>
                                         </div>
 
@@ -331,17 +445,78 @@ class Inicio extends React.Component {
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Fecha:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" readOnly style={{background: 'white'}} value={this.state.formConsulta.formFechaAlta}/>
+                                                <input type="text" className="form-control" readOnly style={{background: 'white'}} value={this.state.formConsulta.formFechaAlta != null ? this.state.formConsulta.formFechaAlta : "" }/>
                                             </div>
                                         </div>
                                         <div className="form-group col-md-12">
                                             <label className="control-label col-sm-3"><b>Hora:</b></label>
                                             <div className="col-sm-9">
-                                                <input type="text" className="form-control" readOnly style={{background: 'white'}} value={this.state.formConsulta.formHoraAlta}/>
+                                                <input type="text" className="form-control" readOnly style={{background: 'white'}} value={this.state.formConsulta.formHoraAlta != null ? this.state.formConsulta.formHoraAlta : "" }/>
                                             </div>
                                         </div>
                                         
-                                        <div className="mb-3 apartadoBotones" style={{textAlign: 'center'}}></div>
+                                        
+                                            {this.state.botonesReportePendiente === true &&
+                                                <div className="mb-3 apartadoBotones" style={{textAlign: 'center'}}>
+                                                    <div className="col-sm-8">
+                                                        <button className="btn form-control" style={{marginTop: '15px', background: '#FFA26D', fontWeight: 'bold', color: 'white'}} onClick={()=>this.actualizarReporte()}>Actualizar</button>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a className="btn btn-primary form-control" onClick={()=>this.clickFuncionAtendiendoRep(this.state.formConsulta.formFolio)} style={{marginTop: '15px'}}><img src="https://cari.villasoftsolutions.com/project/public/images/proceso.png" alt="" width="22px"/></a>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a id="cerrarModal" data-bs-dismiss="modal" className="btn form-control" style={{marginTop: '15px', background: '#FF6A6A', fontWeight: 'bold', color: 'white'}}><b>X</b></a>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            {this.state.botonesReportePendienteDS === true &&
+                                                <div className="mb-3 apartadoBotones" style={{textAlign: 'center'}}>
+                                                    <div className="col-sm-4">
+                                                        <button className="btn form-control" style={{marginTop: '15px', background: '#FFA26D', fontWeight: 'bold', color: 'white'}} onClick={()=>this.actualizarReporte()}>Actualizar</button>
+                                                    </div>
+                                                    <div class="col-sm-4">
+                                                        <a className="btn form-control" style={{marginTop: '15px', background: 'mediumaquamarine', fontWeight: 'bold', color: 'white'}}>Atender</a>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a className="btn btn-primary form-control" onClick={()=>this.clickFuncionAtendiendoRep(this.state.formConsulta.formFolio)} style={{marginTop: '15px'}}><img src="https://cari.villasoftsolutions.com/project/public/images/proceso.png" alt="" width="22px"/></a>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a id="cerrarModal" data-bs-dismiss="modal" className="btn form-control" style={{marginTop: '15px', background: '#FF6A6A', fontWeight: 'bold', color: 'white'}}><b>X</b></a>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            {this.state.botonesReportePendienteAtendiendo === true &&
+                                                <div className="mb-3 apartadoBotones" style={{textAlign: 'center'}}>
+                                                    <div className="col-sm-8">
+                                                        <button className="btn form-control" style={{marginTop: '15px', background: '#FFA26D', fontWeight: 'bold', color: 'white'}} onClick={()=>this.actualizarReporte()}>Actualizar</button>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a className="btn btn-danger form-control" onClick={()=>this.clickFuncionDesatendiendoRep(this.state.formConsulta.formFolio)} style={{marginTop: '15px'}}><img src="https://cari.villasoftsolutions.com/project/public/images/proceso.png" alt="" width="22px"/></a>
+                                                    </div>
+                                                    <div className="col-sm-2">
+                                                        <a id="cerrarModal" data-bs-dismiss="modal" className="btn form-control" style={{marginTop: '15px', background: '#FF6A6A', fontWeight: 'bold', color: 'white'}}><b>X</b></a>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            {this.state.botonesReportePendienteAtendiendoDS === true &&
+                                                    <div className="mb-3 apartadoBotones" style={{textAlign: 'center'}}>
+                                                        <div className="col-sm-4">
+                                                            <button className="btn form-control" style={{marginTop: '15px', background: '#FFA26D', fontWeight: 'bold', color: 'white'}} onClick={()=>this.actualizarReporte()}>Actualizar</button>
+                                                        </div>
+                                                        <div class="col-sm-4">
+                                                            <a className="btn form-control" style={{marginTop: '15px', background: 'mediumaquamarine', fontWeight: 'bold', color: 'white'}}>Atender</a>
+                                                        </div>
+                                                        <div className="col-sm-2">
+                                                        <a className="btn btn-danger form-control" onClick={()=>this.clickFuncionDesatendiendoRep(this.state.formConsulta.formFolio)} style={{marginTop: '15px'}}><img src="https://cari.villasoftsolutions.com/project/public/images/proceso.png" alt="" width="22px"/></a>
+                                                        </div>
+                                                        <div className="col-sm-2">
+                                                            <a id="cerrarModal" data-bs-dismiss="modal" className="btn form-control" style={{marginTop: '15px', background: '#FF6A6A', fontWeight: 'bold', color: 'white'}}><b>X</b></a>
+                                                        </div>
+                                                    </div>
+                                            }
                                     </form>
                                 </div>
                             </div>
